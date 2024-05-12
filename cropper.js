@@ -1,28 +1,28 @@
 /*
-* cropper.js -- v0.1
-* Copyright 2012 Oscar Key
-* A simple image cropping library which uses pure Javascript and the <canvas> tag in order to crop images in the browser.
-*/
+ * cropper.js -- v0.1
+ * Авторские права 2012 Оскар Ки
+ * Простая библиотека обрезки изображений, которая использует чистый JavaScript и тег <canvas> для обрезки изображений в браузере.
+ */
 
 /*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Эта программа является свободным программным обеспечением: вы можете распространять его и / или
+ * изменять его в соответствии с условиями GNU General Public License, опубликованными
+ * Free Software Foundation, либо версии 3 лицензии, либо
+ * (на ваш выбор) любой более поздней версии.
+ *
+ * Эта программа распространяется в надежде, что она будет полезна,
+ * но БЕЗ КАКИХ-ЛИБО ГАРАНТИЙ; без даже подразумеваемой гарантии
+ * ПРИГОДНОСТИ ДЛЯ ОПРЕДЕЛЕННОЙ ЦЕЛИ. См.
+ * GNU General Public License для получения более подробной информации.
+ *
+ * Вы должны были получить копию GNU General Public License
+ * вместе с этой программой. Если нет, см. <http://www.gnu.org/licenses/>.
+ */
 
-(function(cropper, undefined) {
-	"use strict"; // helps us catch otherwise tricky bugs
+(function (cropper, undefined) {
+	"use strict"; // помогает нам обнаруживать иначе сложные ошибки
 
-	/* DRAWING STUFF */
+	/* ВЫВОД */
 	var canvas;
 	var context;
 
@@ -38,26 +38,42 @@
 	};
 
 	var overlay;
+	var rotation = 0; // Текущий угол поворота в градусах
+	var rotationStep = 90; // Шаг поворота (в градусах)
 
 	function draw() {
-		// clear the canvas
+		// очистить холст
 		context.clearRect(0, 0, canvas.width, canvas.height);
 
-		// if we don't have an image file, abort the draw at this point
-		if(image === undefined) {
+		// если у нас нет файла изображения, прервать вывод на этом этапе
+		if (image === undefined) {
 			return;
 		}
 
-		// draw the image
+		// нарисовать изображение
 		var dimens = currentDimens;
-		context.drawImage(image, 0, 0, dimens.width, dimens.height);
 
-		// draw cropping stuff if we are cropping
-		if(cropping) {
-			// draw the overlay
+		// Сохраняем текущее состояние canvas
+		context.save();
+
+		// Переносим точку отсчета в центр canvas
+		context.translate(canvas.width / 2, canvas.height / 2);
+
+		// Вращаем canvas вокруг его центра
+		context.rotate(rotation * Math.PI / 180);
+
+		// Рисуем изображение с учетом вращения
+		context.drawImage(image, -dimens.width / 2, -dimens.height / 2, dimens.width, dimens.height);
+
+		// Восстанавливаем исходное состояние canvas
+		context.restore();
+
+		// нарисовать элементы обрезки, если мы обрезаем
+		if (cropping) {
+			// нарисовать оверлей
 			drawOverlay();
 
-			// draw the resizer
+			// нарисовать изменение размера
 			var x = overlay.x + overlay.width - 5,
 				y = overlay.y + overlay.height - 5,
 				w = overlay.resizerSide,
@@ -73,7 +89,7 @@
 	}
 
 	function drawOverlay() {
-		// draw the overlay using a path made of 4 trapeziums (ahem)
+		// нарисовать оверлей, используя путь из 4 трапеций
 		context.save();
 
 		context.fillStyle = colors.overlay;
@@ -110,16 +126,16 @@
 	}
 
 	function getScaledImageDimensions(width, height) {
-		// choose the dimension to scale to, depending on which is "more too big"
+		// выбираем размер для масштабирования, в зависимости от того, что "больше"
 		var factor = 1;
-		if((canvas.width - width) < (canvas.height - height)) {
-			// scale to width
+		if ((canvas.width - width) < (canvas.height - height)) {
+			// масштабировать по ширине
 			factor = canvas.width / width;
 		} else {
-			// scale to height
+			// масштабировать по высоте
 			factor = canvas.height / height;
 		}
-		// important "if,else" not "if,if" otherwise 1:1 images don't scale
+		// важный "if, else", а не "if, if", иначе изображения 1:1 не масштабируются
 
 		var dimens = {
 			width: Math.floor(width * factor),
@@ -139,14 +155,14 @@
 		};
 	}
 	/**
-	 * @param {Number} x position mouse / touch client event
-	 * @param {Number} y position mouse / touch client event
+	 * @param {Number} x позиция мыши / касания клиентского события
+	 * @param {Number} y позиция мыши / касания клиентского события
 	 */
-	function getClickPos({x, y}) {
+	function getClickPos({ x, y }) {
 		return {
-			x : x - window.scrollX,
-			y : y - window.scrollY
-		}	
+			x: x - window.scrollX,
+			y: y - window.scrollY
+		};
 	}
 
 	function isInOverlay(x, y) {
@@ -157,9 +173,9 @@
 		return x > (overlay.x + overlay.width - overlay.resizerSide) && x < (overlay.x + overlay.width + overlay.resizerSide) && y > (overlay.y + overlay.height - overlay.resizerSide) && y < (overlay.y + overlay.height + overlay.resizerSide);
 	}
 
-	/* EVENT LISTENER STUFF */
+	/* СЛУШАТЕЛИ СОБЫТИЙ */
 	var drag = {
-		type: "", // options: "moveOverlay", "resizeOverlay"
+		type: "", // опции: "moveOverlay", "resizeOverlay"
 		inProgress: false,
 		originalOverlayX: 0,
 		originalOverlayY: 0,
@@ -170,19 +186,19 @@
 	};
 
 	/**
-	 * @param {Number} x position mouse / touch client event
-	 * @param {Number} y position mouse / touch client event
+	 * @param {Number} x позиция мыши / касания клиентского события
+	 * @param {Number} y позиция мыши / касания клиентского события
 	 */
-	function initialCropOrMoveEvent({x, y}) {
-		// if the mouse clicked in the overlay	
-		if(isInOverlay(x, y)) {
+	function initialCropOrMoveEvent({ x, y }) {
+		// если мышь нажата в области оверлея
+		if (isInOverlay(x, y)) {
 			drag.type = "moveOverlay";
 			drag.inProgress = true;
 			drag.originalOverlayX = x - overlay.x;
 			drag.originalOverlayY = y - overlay.y;
 		}
-		
-		if(isInHandle(x, y)) {
+
+		if (isInHandle(x, y)) {
 			drag.type = "resizeOverlay";
 			drag.inProgress = true;
 			drag.originalX = x;
@@ -193,91 +209,91 @@
 	}
 
 	/**
-	 * @param {Number} x horizontal position mouse or touch event
-	 * @param {Number} y vertical position mour or touch event
-	 * @description this function will be crop image inside canvas
-	 */
-	function startCropOrMoveEvent({x, y}) {
+	 * @param {Number} x горизонтальная позиция мыши / касания клиентского события
+	 * @param {Number} y вертикальная позиция мыши / касания клиентского события
+	 * @description
+	**/
 
-		// Set current cursor as appropriate
-		if(isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
-			canvas.style.cursor = 'nwse-resize'
-		} else if(isInOverlay(x, y)) {
-			canvas.style.cursor = 'move'
+	function startCropOrMoveEvent({ x, y }) {
+		// Установить текущий курсор по необходимости
+		if (isInHandle(x, y) || (drag.inProgress && drag.type === "resizeOverlay")) {
+			canvas.style.cursor = 'nwse-resize';
+		} else if (isInOverlay(x, y)) {
+			canvas.style.cursor = 'move';
 		} else {
-			canvas.style.cursor = 'auto'
+			canvas.style.cursor = 'auto';
 		}
 
-		// give up if there is no drag in progress
-		if(!drag.inProgress) {
+		// прерываем, если нет перетаскивания в процессе
+		if (!drag.inProgress) {
 			return;
 		}
 
-		// check what type of drag to do
-		if(drag.type === "moveOverlay") {
+		// проверяем, какой тип перетаскивания делать
+		if (drag.type === "moveOverlay") {
 			overlay.x = x - drag.originalOverlayX;
 			overlay.y = y - drag.originalOverlayY;
 
-			// Limit to size of canvas.
+			// Ограничить размер холста.
 			var xMax = canvas.width - overlay.width;
 			var yMax = canvas.height - overlay.height;
 
-			if(overlay.x < 0) {
+			if (overlay.x < 0) {
 				overlay.x = 0;
-			} else if(overlay.x > xMax) {
+			} else if (overlay.x > xMax) {
 				overlay.x = xMax;
 			}
 
-			if(overlay.y < 0) {
+			if (overlay.y < 0) {
 				overlay.y = 0;
-			} else if(overlay.y > yMax) {
+			} else if (overlay.y > yMax) {
 				overlay.y = yMax;
 			}
 
 			draw();
-		} else if(drag.type === "resizeOverlay") {
+		} else if (drag.type === "resizeOverlay") {
 			overlay.width = drag.originalOverlayWidth + (x - drag.originalX);
 
-			// do not allow the overlay to get too small
-			if(overlay.width < 10) {
+			// не разрешать уменьшение оверлея до слишком малых размеров
+			if (overlay.width < 10) {
 				overlay.width = 10;
 			}
 
-			// Don't allow crop to overflow
-			if(overlay.x + overlay.width > canvas.width) {
+			// Не позволяйте выходить за границы обрезки
+			if (overlay.x + overlay.width > canvas.width) {
 				overlay.width = canvas.width - overlay.x;
 			}
 
 			overlay.height = overlay.width * overlay.ratioXY;
 
-			if(overlay.y + overlay.height > canvas.height) {
+			if (overlay.y + overlay.height > canvas.height) {
 				overlay.height = canvas.height - overlay.y;
 				overlay.width = overlay.height / overlay.ratioXY;
 			}
 
 			draw();
 		}
-	}	
+	}
 
 	function addEventListeners() {
-		// add mouse listeners to the canvas
-		canvas.onmousedown = function(event) {
-			// depending on where the mouse has clicked, choose which type of event to fire
+		// добавить слушателей событий мыши к холсту
+		canvas.onmousedown = function (event) {
+			// в зависимости от того, где щелкнула мышь, выбираем тип события, которое нужно вызвать
 			var coords = canvas.getMouseCoords(event);
 			initialCropOrMoveEvent(getClickPos(coords));
 		};
 
-		canvas.onmouseup = function(event) {
-			// cancel any drags
+		canvas.onmouseup = function (event) {
+			// отменить любые перетаскивания
 			drag.inProgress = false;
 		};
 
-		canvas.onmouseout = function(event) {
-			// cancel any drags
+		canvas.onmouseout = function (event) {
+			// отменить любые перетаскивания
 			drag.inProgress = false;
 		};
 
-		canvas.onmousemove = function(event) {
+		canvas.onmousemove = function (event) {
 			var coords = canvas.getMouseCoords(event);
 
 			startCropOrMoveEvent(getClickPos(coords));
@@ -296,44 +312,55 @@
 		})
 	}
 
-
-	/* CROPPING FUNCTIONS */
+	/* ФУНКЦИИ ОБРЕЗКИ */
 	function cropImage(entire) {
-		// if we don't have an image file, abort at this point
-		if(image === undefined) {
+		// если у нас нет файла изображения, прервать на этом этапе
+		if (image === undefined) {
 			return false;
 		}
 
-		// if we aren't cropping, ensure entire is tru
-		if(!cropping) {
+		// если мы не обрезаем, убедимся, что entire === true
+		if (!cropping) {
 			entire = true;
 		}
 
-		// assume we want to crop the entire image, this will be overriden below
+		// предполагаем, что мы хотим обрезать весь снимок, это будет переопределено ниже
 		var x = 0;
 		var y = 0;
 		var width = image.width;
 		var height = image.height;
 
-		if(!entire) {
-			// work out the actual dimensions that need cropping
+		if (!entire) {
+			// вычисляем фактические размеры для обрезки
 			var factor = currentDimens.factor;
 			x = Math.floor(overlay.x / factor);
 			y = Math.floor(overlay.y / factor);
 			width = Math.floor(overlay.width / factor);
 			height = Math.floor(overlay.height / factor);
 
-			// check the values are within range of the image
-			if(x < 0){ x = 0; }
-			if(x > image.width){ x = image.width; }
-			if(y < 0){ y = 0; }
-			if(y > image.height){ y = image.height; }
+			// проверяем, что значения находятся в пределах изображения
+			if (x < 0) {
+				x = 0;
+			}
+			if (x > image.width) {
+				x = image.width;
+			}
+			if (y < 0) {
+				y = 0;
+			}
+			if (y > image.height) {
+				y = image.height;
+			}
 
-			if(x + width > image.width){ width = image.width - x; }
-			if(y + height > image.height){ height = image.height - y; }
+			if (x + width > image.width) {
+				width = image.width - x;
+			}
+			if (y + height > image.height) {
+				height = image.height - y;
+			}
 		}
 
-		// load the image into the cropping canvas
+		// загружаем изображение на холст обрезки
 		var cropCanvas = document.createElement("canvas");
 		cropCanvas.setAttribute("width", width);
 		cropCanvas.setAttribute("height", height);
@@ -344,43 +371,43 @@
 		return cropCanvas;
 	}
 
-	/* function borrowed from http://stackoverflow.com/a/7261048/425197 */
+	/* функция взята из http://stackoverflow.com/a/7261048/425197 */
 	function dataUrlToBlob(dataURI) {
-		// convert base64 to raw binary data held in a string
+		// преобразовать base64 в двоичные данные, хранящиеся в строке
 		var byteString = atob(dataURI.split(',')[1]);
 
-		// separate out the mime component
+		// разделить компонент mime
 		var mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
 
-		// write the bytes of the string to an ArrayBuffer
+		// записать байты строки в ArrayBuffer
 		var ab = new ArrayBuffer(byteString.length);
 		var ia = new Uint8Array(ab);
 		for (var i = 0; i < byteString.length; i++) {
 			ia[i] = byteString.charCodeAt(i);
 		}
 
-		// write the ArrayBuffer to a blob, and you're done
-		return new Blob([ia], {type: mimeString});
+		// записать ArrayBuffer в blob и вернуть его
+		return new Blob([ia], { type: mimeString });
 	}
 
-	/* API FUNCTIONS */
-	cropper.showImage = function(src) {
+	/* API ФУНКЦИИ */
+	cropper.showImage = function (src) {
 		cropping = false;
 		image = new Image();
-		image.onload = function() {
-			currentDimens = getScaledImageDimensions(image.width, image.height) ; // work out the scaling
+		image.onload = function () {
+			currentDimens = getScaledImageDimensions(image.width, image.height); // вычисляем масштаб
 			draw();
 		};
 		image.src = src;
 	};
 
-	cropper.startCropping = function() {
-		// only continue if an image is loaded
-		if(image === undefined) {
+	cropper.startCropping = function () {
+		// продолжать только в случае загруженного изображения
+		if (image === undefined) {
 			return false;
 		}
 
-		// save the current state
+		// сохраняем текущее состояние
 		restoreImage = new Image();
 		restoreImage.src = image.src;
 
@@ -390,14 +417,14 @@
 		return true;
 	};
 
-	cropper.getCroppedImageSrc = function() {
-		if(image) {
-			// return the cropped image
-			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+	cropper.getCroppedImageSrc = function () {
+		if (image) {
+			// возвращаем обрезанное изображение
+			var cropCanvas = cropImage(!cropping); // cropping здесь управляет получением всего изображения или нет, что желательно, если пользователь не обрезает
 			var url = cropCanvas.toDataURL("png");
 
-			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-			if(cropping) {
+			// показываем новое изображение, только если его еще нет, то есть если мы обрезаем
+			if (cropping) {
 				cropper.showImage(url);
 			}
 
@@ -408,35 +435,35 @@
 		}
 	};
 
-	cropper.getCroppedImageBlob = function(type) {
-		if(image) {
-			// return the cropped image
-			var cropCanvas = cropImage(!cropping); // cropping here controls if we get the entire image or not, desirable if the user is not cropping
+	cropper.getCroppedImageBlob = function (type) {
+		if (image) {
+			// возвращаем обрезанное изображение
+			var cropCanvas = cropImage(!cropping); // cropping здесь управляет получением всего изображения или нет, что желательно, если пользователь не обрезает
 			var url = cropCanvas.toDataURL(type || "png");
 
-			// show the new image, only bother doing this if it isn't already displayed, ie, we are cropping
-			if(cropping) {
+			// показываем новое изображение, только если его еще нет, то есть если мы обрезаем
+			if (cropping) {
 				cropper.showImage(url);
 			}
 
 			cropping = false;
 
-			// convert the url to a blob and return it
+			// преобразовать url в blob и вернуть его
 			return dataUrlToBlob(url);
 		} else {
 			return false;
 		}
 	};
 
-	cropper.start = function(newCanvas, ratio) {
-		// get the context from the given canvas
+	cropper.start = function (newCanvas, ratio) {
+		// получаем контекст из данного холста
 		canvas = newCanvas;
-		if(!canvas.getContext) {
-			return; // give up
+		if (!canvas.getContext) {
+			return; // отказываемся
 		}
 		context = canvas.getContext("2d");
 
-		// Set default overlay position
+		// Установить позицию оверлея по умолчанию
 		overlay = {
 			x: 50,
 			y: 50,
@@ -446,31 +473,41 @@
 			ratioXY: 1
 		}
 
-		// set up the overlay ratio
-		if(ratio) {
+		// установить соотношение оверлея
+		if (ratio) {
 			setRatio(ratio);
 		}
 
-		// setup mouse stuff
+		// настроить мышь
 		addEventListeners();
 	};
 
-	cropper.restore = function() {
-		if(restoreImage === undefined) {
+	cropper.restore = function () {
+		if (restoreImage === undefined) {
 			return false;
 		}
 
 		cropping = false;
 
-		// show the saved image
+		// показать сохраненное изображение
 		cropper.showImage(restoreImage.src);
 		return true;
 	};
 
+	// Функции для вращения изображения
+	cropper.rotateLeft = function () {
+		rotation = (rotation - rotationStep + 360) % 360;
+		draw();
+	};
 
-	/* modify the canvas prototype to allow us to get x and y mouse coords from it */
-	HTMLCanvasElement.prototype.getMouseCoords = function(event){
-		// loop through this element and all its parents to get the total offset
+	cropper.rotateRight = function () {
+		rotation = (rotation + rotationStep) % 360;
+		draw();
+	};
+
+	/* изменить прототип холста, чтобы мы могли получить x и y координаты мыши */
+	HTMLCanvasElement.prototype.getMouseCoords = function (event) {
+		// пройтись по этому элементу и всем его родителям, чтобы получить общий сдвиг
 		var totalOffsetX = 0;
 		var totalOffsetY = 0;
 		var canvasX = 0;
@@ -481,12 +518,92 @@
 			totalOffsetX += currentElement.offsetLeft;
 			totalOffsetY += currentElement.offsetTop;
 		}
-		while(currentElement = currentElement.offsetParent)
+		while (currentElement = currentElement.offsetParent)
 
 		canvasX = event.pageX - totalOffsetX;
 		canvasY = event.pageY - totalOffsetY;
 
-		return {x:canvasX, y:canvasY}
+		return { x: canvasX, y: canvasY }
 	}
 
+	// Добавляем обработчики событий для Drag and Drop
+	canvas.addEventListener('dragover', handleDragOver, false);
+	canvas.addEventListener('dragleave', handleDragLeave, false);
+	canvas.addEventListener('drop', handleFileDrop, false);
+
+	function handleDragOver(evt) {
+		evt.stopPropagation();
+		evt.preventDefault();
+		evt.dataTransfer.dropEffect = 'copy'; // указываем браузеру, что разрешено перетаскивание
+		canvas.style.borderColor = "#000000";
+	}
+
+	function handleDragLeave(evt) {
+		evt.stopPropagation();
+		evt.preventDefault();
+		canvas.style.borderColor = "#8f8f8f";
+	}
+
+	function handleFileDrop(evt) {
+		evt.stopPropagation();
+		evt.preventDefault();
+		canvas.style.borderColor = "#8f8f8f";
+		var files = evt.dataTransfer.files; // FileList object.
+
+		// файлы приняты, начнем обработку
+		if (files.length > 0) {
+			var file = files[0];
+			var reader = new FileReader();
+
+			// событие возникает, когда чтение файла завершено
+			reader.onload = function (event) {
+				cropper.showImage(event.target.result);
+			};
+
+			// начинаем чтение файла
+			reader.readAsDataURL(file);
+		}
+	}
+
+	/* Приватные функции */
+	// Получить x и y координаты касания
+	function getTouchPos(touchEvent) {
+		var rect = canvas.getBoundingClientRect();
+		return {
+			x: touchEvent.touches[0].clientX - rect.left,
+			y: touchEvent.touches[0].clientY - rect.top
+		};
+	}
 }(window.cropper = window.cropper || {}));
+
+// Добавляем обработчики событий для Drag and Drop
+canvas.addEventListener('dragover', handleDragOver, false);
+canvas.addEventListener('dragleave', handleDragLeave, false);
+canvas.addEventListener('drop', handleFileDrop, false);
+
+function handleDragOver(evt) {
+	evt.stopPropagation();
+	evt.preventDefault();
+	evt.dataTransfer.dropEffect = 'copy';
+}
+
+function handleDragLeave(evt) {
+	evt.stopPropagation();
+	evt.preventDefault();
+}
+
+function handleFileDrop(evt) {
+	evt.stopPropagation();
+	evt.preventDefault();
+
+	const files = evt.dataTransfer.files;
+	if (files.length > 0) {
+		const file = files[0];
+		const reader = new FileReader();
+		reader.onload = function (event) {
+			const data = event.target.result;
+			cropper.showImage(data);
+		};
+		reader.readAsDataURL(file);
+	}
+}
