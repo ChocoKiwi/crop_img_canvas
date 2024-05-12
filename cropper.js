@@ -1,24 +1,3 @@
-/*
- * cropper.js -- v0.1
- * Авторские права 2012 Оскар Ки
- * Простая библиотека обрезки изображений, которая использует чистый JavaScript и тег <canvas> для обрезки изображений в браузере.
- */
-
-/*
- * Эта программа является свободным программным обеспечением: вы можете распространять его и / или
- * изменять его в соответствии с условиями GNU General Public License, опубликованными
- * Free Software Foundation, либо версии 3 лицензии, либо
- * (на ваш выбор) любой более поздней версии.
- *
- * Эта программа распространяется в надежде, что она будет полезна,
- * но БЕЗ КАКИХ-ЛИБО ГАРАНТИЙ; без даже подразумеваемой гарантии
- * ПРИГОДНОСТИ ДЛЯ ОПРЕДЕЛЕННОЙ ЦЕЛИ. См.
- * GNU General Public License для получения более подробной информации.
- *
- * Вы должны были получить копию GNU General Public License
- * вместе с этой программой. Если нет, см. <http://www.gnu.org/licenses/>.
- */
-
 (function (cropper, undefined) {
 	"use strict"; // помогает нам обнаруживать иначе сложные ошибки
 
@@ -312,6 +291,15 @@
 		})
 	}
 
+	function getEmptySpaceDimensions() {
+		var emptyWidth = canvas.width - currentDimens.width;
+		var emptyHeight = canvas.height - currentDimens.height;
+		return {
+			width: emptyWidth,
+			height: emptyHeight
+		};
+	}
+
 	/* ФУНКЦИИ ОБРЕЗКИ */
 	function cropImage(entire) {
 		// если у нас нет файла изображения, прервать на этом этапе
@@ -333,10 +321,11 @@
 		if (!entire) {
 			// вычисляем фактические размеры для обрезки
 			var factor = currentDimens.factor;
-			x = Math.floor(overlay.x / factor);
-			y = Math.floor(overlay.y / factor);
-			width = Math.floor(overlay.width / factor);
-			height = Math.floor(overlay.height / factor);
+			var emptySpace = getEmptySpaceDimensions();
+			var x = Math.floor((overlay.x - emptySpace.width / 2) / factor);
+			var y = Math.floor((overlay.y - emptySpace.height / 2) / factor);
+			var width = Math.floor(overlay.width / factor);
+			var height = Math.floor(overlay.height / factor);
 
 			// проверяем, что значения находятся в пределах изображения
 			if (x < 0) {
